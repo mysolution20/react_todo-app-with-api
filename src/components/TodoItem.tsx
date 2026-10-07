@@ -1,4 +1,3 @@
-/* eslint-disable jsx-a11y/label-has-associated-control */
 import React, { useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
 import { Todo } from '../types/Todo';
@@ -17,8 +16,11 @@ export const TodoItem: React.FC<Props> = ({
   onDelete,
   onUpdate,
 }) => {
+  const { id, title, completed } = todo;
+  const statusInputId = `todo-status-${id}`;
+
   const [isEditing, setIsEditing] = useState(false);
-  const [editedTitle, setEditedTitle] = useState(todo.title);
+  const [editedTitle, setEditedTitle] = useState(title);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const isSavingRef = useRef(false);
@@ -35,7 +37,7 @@ export const TodoItem: React.FC<Props> = ({
       return;
     }
 
-    setEditedTitle(todo.title);
+    setEditedTitle(title);
     isEditingRef.current = true;
     setIsEditing(true);
   };
@@ -47,7 +49,7 @@ export const TodoItem: React.FC<Props> = ({
 
     isEditingRef.current = false;
     setIsEditing(false);
-    setEditedTitle(todo.title);
+    setEditedTitle(title);
   };
 
   const saveTitle = async () => {
@@ -57,7 +59,7 @@ export const TodoItem: React.FC<Props> = ({
 
     const trimmedTitle = editedTitle.trim();
 
-    if (trimmedTitle === todo.title) {
+    if (trimmedTitle === title) {
       cancelEditing();
 
       return;
@@ -66,8 +68,8 @@ export const TodoItem: React.FC<Props> = ({
     isSavingRef.current = true;
 
     const success = trimmedTitle
-      ? await onUpdate(todo.id, { title: trimmedTitle })
-      : await onDelete(todo.id);
+      ? await onUpdate(id, { title: trimmedTitle })
+      : await onDelete(id);
 
     isSavingRef.current = false;
 
@@ -80,23 +82,18 @@ export const TodoItem: React.FC<Props> = ({
   };
 
   return (
-    <div
-      data-cy="Todo"
-      className={classNames('todo', {
-        completed: todo.completed,
-      })}
-    >
-      <label className="todo__status-label">
+    <div data-cy="Todo" className={classNames('todo', { completed })}>
+      <label className="todo__status-label" htmlFor={statusInputId}>
         <input
+          id={statusInputId}
           data-cy="TodoStatus"
           type="checkbox"
           className="todo__status"
-          checked={todo.completed}
+          aria-label="Mark todo as completed"
+          checked={completed}
           disabled={isLoading}
           onChange={() => {
-            void onUpdate(todo.id, {
-              completed: !todo.completed,
-            });
+            void onUpdate(id, { completed: !completed });
           }}
         />
       </label>
@@ -114,6 +111,7 @@ export const TodoItem: React.FC<Props> = ({
             type="text"
             className="todo__title-field"
             placeholder="Empty todo will be deleted"
+            aria-label="Edit todo title"
             value={editedTitle}
             readOnly={isLoading}
             onChange={event => {
@@ -136,7 +134,7 @@ export const TodoItem: React.FC<Props> = ({
             className="todo__title"
             onDoubleClick={startEditing}
           >
-            {todo.title}
+            {title}
           </span>
 
           <button
@@ -146,7 +144,7 @@ export const TodoItem: React.FC<Props> = ({
             aria-label="Delete todo"
             disabled={isLoading}
             onClick={() => {
-              void onDelete(todo.id);
+              void onDelete(id);
             }}
           >
             ×
