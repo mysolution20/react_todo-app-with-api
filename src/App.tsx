@@ -15,6 +15,7 @@ import { ErrorNotification } from './components/ErrorNotification';
 import { Todo } from './types/Todo';
 import { Status } from './types/Status';
 import { ErrorMessage } from './types/ErrorMessage';
+import { getVisibleTodos } from './utils/getVisibleTodos';
 
 const ERROR_DISPLAY_DURATION = 3000;
 
@@ -32,8 +33,6 @@ export const App: React.FC = () => {
   const [error, setError] = useState<TodoError | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const isAddingRef = useRef(false);
-  const pendingIdsRef = useRef(new Set<number>());
 
   useEffect(() => {
     if (!USER_ID) {
@@ -91,30 +90,17 @@ export const App: React.FC = () => {
   };
 
   const startProcessing = (todoId: number) => {
-    if (pendingIdsRef.current.has(todoId)) {
-      return false;
-    }
-
-    pendingIdsRef.current.add(todoId);
     setProcessingIds(currentIds => [...currentIds, todoId]);
     setError(null);
-
-    return true;
   };
 
   const finishProcessing = (todoId: number) => {
-    pendingIdsRef.current.delete(todoId);
-
     setProcessingIds(currentIds => {
       return currentIds.filter(id => id !== todoId);
     });
   };
 
   const handleAdd = async (newTitle: string) => {
-    if (isLoading || isAddingRef.current) {
-      return;
-    }
-
     setError(null);
 
     if (!newTitle) {
@@ -123,8 +109,6 @@ export const App: React.FC = () => {
 
       return;
     }
-
-    isAddingRef.current = true;
 
     setTempTodo({
       id: 0,
@@ -141,15 +125,12 @@ export const App: React.FC = () => {
     } catch {
       setError({ message: ErrorMessage.Add });
     } finally {
-      isAddingRef.current = false;
       setTempTodo(null);
     }
   };
 
   const handleDelete = async (todoId: number): Promise<boolean> => {
-    if (!startProcessing(todoId)) {
-      return false;
-    }
+    startProcessing(todoId);
 
     try {
       await deleteTodo(todoId);
@@ -174,9 +155,7 @@ export const App: React.FC = () => {
     todoId: number,
     changes: TodoChanges,
   ): Promise<boolean> => {
-    if (!startProcessing(todoId)) {
-      return false;
-    }
+    startProcessing(todoId);
 
     try {
       const updatedTodo = await updateTodo(todoId, changes);
@@ -206,7 +185,9 @@ export const App: React.FC = () => {
 
   const handleClearCompleted = () => {
     todos
-      .filter(({ completed }) => completed)
+      .filter(({ id, completed }) => {
+        return completed && !processingIds.includes(id);
+      })
       .forEach(({ id }) => {
         void handleDelete(id);
       });
@@ -216,7 +197,9 @@ export const App: React.FC = () => {
     const nextCompleted = !todos.every(({ completed }) => completed);
 
     todos
-      .filter(({ completed }) => completed !== nextCompleted)
+      .filter(({ id, completed }) => {
+        return completed !== nextCompleted && !processingIds.includes(id);
+      })
       .forEach(({ id }) => {
         void handleUpdate(id, { completed: nextCompleted });
       });
@@ -233,19 +216,7 @@ export const App: React.FC = () => {
   const hasTodos = todos.length > 0;
   const hasCompletedTodos = todos.some(({ completed }) => completed);
   const allTodosCompleted = hasTodos && activeTodosCount === 0;
-
-  const visibleTodos = todos.filter(({ completed }) => {
-    switch (status) {
-      case Status.Active:
-        return !completed;
-
-      case Status.Completed:
-        return completed;
-
-      default:
-        return true;
-    }
-  });
+  const visibleTodos = getVisibleTodos(todos, status);
 
   return (
     <div className="todoapp">
