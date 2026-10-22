@@ -23,8 +23,6 @@ export const TodoItem: React.FC<Props> = ({
   const [editedTitle, setEditedTitle] = useState(title);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const isSavingRef = useRef(false);
-  const isEditingRef = useRef(false);
 
   useEffect(() => {
     if (isEditing && !isLoading) {
@@ -38,22 +36,20 @@ export const TodoItem: React.FC<Props> = ({
     }
 
     setEditedTitle(title);
-    isEditingRef.current = true;
     setIsEditing(true);
   };
 
   const cancelEditing = () => {
-    if (isSavingRef.current) {
+    if (isLoading) {
       return;
     }
 
-    isEditingRef.current = false;
     setIsEditing(false);
     setEditedTitle(title);
   };
 
   const saveTitle = async () => {
-    if (!isEditingRef.current || isSavingRef.current || isLoading) {
+    if (!isEditing || isLoading) {
       return;
     }
 
@@ -65,16 +61,11 @@ export const TodoItem: React.FC<Props> = ({
       return;
     }
 
-    isSavingRef.current = true;
-
     const success = trimmedTitle
       ? await onUpdate(id, { title: trimmedTitle })
       : await onDelete(id);
 
-    isSavingRef.current = false;
-
     if (success) {
-      isEditingRef.current = false;
       setIsEditing(false);
     } else {
       inputRef.current?.focus();
